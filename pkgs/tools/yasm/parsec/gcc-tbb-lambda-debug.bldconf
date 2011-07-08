@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# gcc-tbb-lambda-debug.bldconf - configuration file for PARSEC
+
+source ${PARSECDIR}/pkgs/tools/yasm/parsec/gcc.bldconf
