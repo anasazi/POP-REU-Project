@@ -3,3 +3,5 @@
 # gcc-tbb-funcobj.bldconf - configuration file for PARSEC
 
 source ${PARSECDIR}/pkgs/apps/blackscholes/parsec/gcc.bldconf
+
+build_env="version=tbb_funcobj"

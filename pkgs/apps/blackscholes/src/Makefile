@@ -11,6 +11,12 @@ else
 		ifeq "$(version)" "tbb"
 			SRC	= blackscholes.tbb.cpp
 		endif
+		ifeq "$(version)" "tbb_funcobj"
+			SRC	= blackscholes.tbb-funcobj.cpp
+		endif
+		ifeq "$(version)" "tbb_lambda"
+			SRC	= blackscholes.tbb-lambda.cpp
+		endif
 	endif
 endif
 
@@ -30,6 +36,12 @@ ifdef version
     MT        = -DENABLE_OPENMP
   endif
   ifeq "$(version)" "tbb"
+    MT        = -DTBB_VERSION
+  endif
+  ifeq "$(version)" "tbb_funcobj"
+    MT        = -DTBB_VERSION
+  endif
+  ifeq "$(version)" "tbb_lambda"
     MT        = -DTBB_VERSION
   endif
 else
