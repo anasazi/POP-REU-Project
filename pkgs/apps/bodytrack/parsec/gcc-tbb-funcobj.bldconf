@@ -3,3 +3,5 @@
 # gcc-tbb-funcobj.bldconf - configuration file for PARSEC
 
 source ${PARSECDIR}/pkgs/apps/bodytrack/parsec/gcc.bldconf
+
+build_conf="--enable-tbb --disable-threads --disable-openmp"
