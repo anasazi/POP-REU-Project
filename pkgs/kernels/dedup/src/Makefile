@@ -9,11 +9,24 @@ BIGFILE_CFLAGS=$(shell getconf LFS_CFLAGS)
 CFLAGS += -Wall -std=c99 -fno-strict-aliasing -D_XOPEN_SOURCE=600
 LIBS += -lcrypto -lz
 
-DEDUP_OBJ =  hashtable.o queue.o util.o binheap.o tree.o decoder.o dedup.o rabin.o encoder.o
+DEDUP_OBJ =  hashtable.o queue.o util.o binheap.o tree.o decoder.o dedup.o rabin.o #encoder.o
 
 ifdef version
   ifeq "$(version)" "pthreads"
     CFLAGS += -DPARALLEL -pthread
+    COMPILER=$(CC)
+    COMPILER_FLAGS=$(CFLAGS)
+    DEDUP_OBJ += encoder.o
+  endif
+  ifeq "$(version)" "tbb_funcobj"
+    COMPILER=$(CXX)
+    COMPILER_FLAGS=$(CXXFLAGS)
+    DEDUP_OBJ += encoder-funcobj.o
+  endif
+  ifeq "$(version)" "tbb_lambda"
+    COMPILER=$(CXX)
+    COMPILER_FLAGS=$(CXXFLAGS)
+    DEDUP_OBJ += encoder-lambda.o
   endif
 endif
 
@@ -21,10 +34,12 @@ endif
 all: $(TARGET)
 
 .c.o:
-	$(CC) -c $(CFLAGS) $< -o $@
+	$(COMPILER) -c $(COMPILER_FLAGS) $< -o $@
+	#$(CC) -c $(CFLAGS) $< -o $@
 
 $(TARGET): $(DEDUP_OBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) $(DEDUP_OBJ) $(LIBS)
+	$(COMPILER) $(COMPILER_FLAGS) $(LDFLAGS) -o $(TARGET) $(DEDUP_OBJ) $(LIBS)
+	#$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) $(DEDUP_OBJ) $(LIBS)
 
 clean:
 	rm -f *~ *.o $(TARGET)
