@@ -3,3 +3,4 @@
 # gcc-tbb-funcobj.bldconf - configuration file for PARSEC
 
 source ${PARSECDIR}/pkgs/kernels/dedup/parsec/gcc.bldconf
+build_env="version=tbb_funcobj CFLAGS=\"-I${PARSECDIR}/pkgs/libs/ssl/inst/${PARSECPLAT}/include -I${PARSECDIR}/pkgs/libs/zlib/inst/${PARSECPLAT}/include ${CFLAGS}\" LDFLAGS=\"-L${PARSECDIR}/pkgs/libs/ssl/inst/${PARSECPLAT}/lib -L${PARSECDIR}/pkgs/libs/zlib/inst/${PARSECPLAT}/lib ${LDFLAGS}\""
