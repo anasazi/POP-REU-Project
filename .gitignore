@@ -11,9 +11,6 @@ bin/
 .parsec_uniquefile
 *.swp
 
-#pkgs/*/*/!(parsec|src)/*
-#pkgs/*/*/*
-#!pkgs/*/*/{parsec,src}
-
 pkgs/*/*/inputs/
-
+pkgs/*/*/inst/
+pkgs/*/*/obj/
