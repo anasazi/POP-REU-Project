@@ -3,3 +3,13 @@
 # gcc-tbb-funcobj-debug.bldconf - configuration file for PARSEC
 
 source ${PARSECDIR}/config/gcc.bldconf
+
+TBB_CFLAGS="-I${PARSECDIR}/pkgs/libs/tbblib/inst/${PARSECPLAT}/include -O0 -g"
+TBB_CXXFLAGS="${TBB_CFLAGS}"
+TBB_LDFLAGS="-L${PARSECDIR}/pkgs/libs/tbblib/inst/${PARSECPLAT}/lib"
+TBB_LIBS="-ltbb_debug -ldl -lrt"
+
+export CFLAGS="${CFLAGS} ${TBB_CFLAGS}"
+export CXXFLAGS="${CXXFLAGS} ${TBB_CXXFLAGS}"
+export LDFLAGS="${LDFLAGS} ${TBB_LDFLAGS}"
+export LIBS="${LIBS} ${TBB_LIBS}"
