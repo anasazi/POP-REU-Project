@@ -1,14 +1,14 @@
-CHANGELOG
-CONTRIBUTORS
-env.sh
-FAQ
-LICENSE
+#CHANGELOG
+#CONTRIBUTORS
+#env.sh
+#FAQ
+#LICENSE
 man/
 log/
-README
-version
-bin/
-.parsec_uniquefile
+#README
+#version
+#bin/
+#.parsec_uniquefile
 *.swp
 
 pkgs/*/*/inputs/
