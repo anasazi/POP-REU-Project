@@ -16,7 +16,7 @@
 #endif
 #endif
 
-struct hashtable;
+struct hashtable; 
 
 /* Example of use:
  *

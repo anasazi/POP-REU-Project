@@ -36,12 +36,12 @@ void print_head(send_head * head);
 
 unsigned int hash_from_key_fn( void *k );
 
-struct hashtable * cache;
+extern struct hashtable * cache;
 
 #define METHOD_SOCKET 0
 #define METHOD_FILE 1
 
-int compress_way;
+extern int compress_way;
 
 //extern struct queue *chunk_que, *anchor_que, *send_que, *compress_que;
 

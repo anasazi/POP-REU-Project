@@ -80,8 +80,6 @@ private:
 	u32int rabintab[256], rabinwintab[256];
 	int rf_win_dataprocess, n;
 
-	//int counter; // FIXME
-
 	// returns NULL if no new blocks
 	block_of_fingerprints* getNextBlock() {
 		if ( src_loc < src_bytes ) {
@@ -132,8 +130,6 @@ public:
 		n(MAX_RABIN_CHUNK_SIZE)
 	{
 		rabininit( rf_win_dataprocess, rabintab, rabinwintab );
-		//counter = 0; // FIXME
-		//printf("ReadBlocksFromInput is serial: %d", is_serial()); fflush(stdout); //FIXME
 	};
 
 	~ReadBlocksFromInput() {
@@ -142,7 +138,6 @@ public:
 
 	// argument is ignored
 	void* operator()( void* ) {
-		//printf("Reading in for the %dth time\n", counter++); fflush(stdout); // FIXME
 		block_of_fingerprints* item;
 		if ( (item = getNextBlock()) != NULL ) {
 			return item;
@@ -186,7 +181,6 @@ public:
 		tbb::filter( false )
 	{};
 	void* operator()( void* vitem ) {
-		//printf("In the middle stage\n"); fflush(stdout); //FIXME
 		block_of_fingerprints* item = (block_of_fingerprints*) vitem;
 		std::vector<one_processed_fingerprint*> *out_item = new std::vector<one_processed_fingerprint*>();
 
@@ -215,8 +209,6 @@ protected:
 		u_char *anchor_start, *anchor_end;
 		int n, rf_win;
 		u32int rabintab[256], rabinwintab[256];
-
-		//int counter; // FIXME
 	public:
 		BreakUpBlocks( block_of_fingerprints *_input ) :
 			//filter( serial_in_order ),
@@ -228,8 +220,6 @@ protected:
 			rabininit( rf_win, rabintab, rabinwintab );
 			anchor_start = input->start;
 			anchor_end = input->start;
-
-			//counter = 0; // FIXME
 		};
 
 		virtual ~BreakUpBlocks() {
@@ -238,8 +228,6 @@ protected:
 		};
 		// argument is ignored
 		void* operator()( void* ) {
-			//.printf("In the first inner stage\n"); fflush(stdout); //FIXME
-			//printf("At %d in first stage\n", counter++); fflush(stdout); //FIXME
 			one_fingerprint *item;
 			if ( anchor_end < input->start + input->len ) {
 				if ( input->len + input->start - anchor_end < n ) {
@@ -274,7 +262,6 @@ protected:
 			tbb::filter( false )
 		{};
 		void* operator()( void* vitem ) {
-			//.printf("In the second inner stage\n"); fflush(stdout); //FIXME
 			one_fingerprint *item = (one_fingerprint*) vitem;
 			one_processed_fingerprint *out_item;
 			one_processed_fingerprint_body *out_body;
@@ -341,7 +328,6 @@ protected:
 			tbb::filter( false )
 		{};
 		void* operator()( void* vitem ) {
-			//printf("In the third inner stage\n"); fflush(stdout); //FIXME
 			one_processed_fingerprint *item = (one_processed_fingerprint*) vitem;
 			if ( item->type != TYPE_COMPRESS )
 				return item; // skip the compression stage
@@ -409,7 +395,6 @@ protected:
 		{};
 		// return value is ignored
 		void* operator()( void* vitem ) {
-			//printf("In the fourth inner stage\n"); fflush(stdout); //FIXME
 			one_processed_fingerprint *item = (one_processed_fingerprint*) vitem;
 			buf->push_back( item );
 			return NULL;
@@ -444,7 +429,6 @@ public:
 
 	// return value is ignored
 	void* operator()( void* vitem ) {
-		//printf("Starting the write out stage\n"); fflush(stdout); //FIXME
 		std::vector<one_processed_fingerprint*> *item_vec = (std::vector<one_processed_fingerprint*>*) vitem;
 
 		for( int i = 0; i < item_vec->size(); i++ ) {
@@ -516,13 +500,9 @@ void Encode( config *conf ) {
 	ProcessBlocks *midfilter = new ProcessBlocks();
 	WriteBlocksToOutput *outfilter = new WriteBlocksToOutput( outfd, head );
 
-	//printf("Created the pipeline stages\n"); fflush(stdout); // FIXME
-
 	pipeline.add_filter( *infilter );
 	pipeline.add_filter( *midfilter );
 	pipeline.add_filter( *outfilter );
-
-	//printf("Added the filters\n"); fflush(stdout); // FIXME
 
 	// run the pipeline
 	pipeline.run( OUTER_PIPELINE_NUM_TOKENS );

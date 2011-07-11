@@ -7,6 +7,9 @@
 #include "dedupdef.h"
 #include "util.h"
 
+struct hashtable *cache = NULL;
+int compress_way = -1;
+
 void Calc_SHA1Sig(const byte* buf, int32 num_bytes, u_char * digest)
 {
   SHA_CTX sha;
