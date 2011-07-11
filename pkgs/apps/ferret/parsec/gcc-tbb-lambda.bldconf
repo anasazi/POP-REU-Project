@@ -3,3 +3,4 @@
 # gcc-tbb-lambda.bldconf - configuration file for PARSEC
 
 source ${PARSECDIR}/pkgs/apps/ferret/parsec/gcc.bldconf
+build_env="version=\"tbb_lambda\" ${ferret_flags}"
