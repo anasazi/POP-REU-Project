@@ -34,8 +34,11 @@ endif
 all: $(TARGET)
 
 .c.o:
-	$(COMPILER) -c $(COMPILER_FLAGS) $< -o $@
-	#$(CC) -c $(CFLAGS) $< -o $@
+	$(CC) -c $(CFLAGS) $< -o $@
+#	$(COMPILER) -c $(COMPILER_FLAGS) $< -o $@
+
+.cpp.o:
+	$(CXX) -c $(CXXFLAGS) $< -o $@
 
 $(TARGET): $(DEDUP_OBJ)
 	$(COMPILER) $(COMPILER_FLAGS) $(LDFLAGS) -o $(TARGET) $(DEDUP_OBJ) $(LIBS)
