@@ -1,15 +1,7 @@
-#CHANGELOG
-#CONTRIBUTORS
-#env.sh
-#FAQ
-#LICENSE
 man/
 log/
-#README
-#version
-#bin/
-#.parsec_uniquefile
 *.swp
+bin/tbbtest.cpp
 
 pkgs/*/*/inputs/
 pkgs/*/*/inst/
