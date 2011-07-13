@@ -14,7 +14,7 @@
 
 #include <pthread.h>
 #include "tbb/pipeline.h"
-#include "tbb/task_scheduler_init.h"
+//#include "tbb/task_scheduler_init.h"
 
 #define INT64(x) ((unsigned long long)(x))
 #define MSB64 INT64(0x8000000000000000ULL)
@@ -483,7 +483,7 @@ public:
 
 // compress an input stream
 void Encode( config *conf ) {
-	tbb::task_scheduler_init( conf->nthreads );
+	//tbb::task_scheduler_init( conf->nthreads );
 	// create the header for the outfile
 	send_head *head = new send_head;
 	strcpy( head->filename, conf->infile );

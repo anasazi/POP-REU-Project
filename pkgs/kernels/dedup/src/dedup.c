@@ -11,6 +11,10 @@
 #include <pthread.h>
 #endif //PARALLEL
 
+#ifdef TBB
+#include "tbb/task_scheduler_init.h"
+#endif
+
 #ifdef ENABLE_PARSEC_HOOKS
 #include <hooks.h>
 #endif
@@ -53,6 +57,10 @@ main(int argc, char** argv)
 #endif //PARSEC_VERSION
 #ifdef ENABLE_PARSEC_HOOKS
         __parsec_bench_begin(__parsec_dedup);
+#endif
+
+#ifdef TBB
+  tbb::task_scheduler_init init( tbb::task_scheduler_init::deferred );
 #endif
 
   int32 compress = TRUE;
@@ -114,6 +122,10 @@ main(int argc, char** argv)
       return -1;
     }
   }
+#ifdef TBB
+  init.initialize( conf->nthreads );
+  //tbb::task_scheduler_init( conf->nthreads );
+#endif
 
 #ifndef PARALLEL
  if (conf->nthreads != 1){

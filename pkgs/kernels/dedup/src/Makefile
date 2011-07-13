@@ -20,15 +20,15 @@ ifdef version
     DEDUP_OBJ += encoder.o
   endif
   ifeq "$(version)" "tbb_funcobj"
-    CFLAGS += -DPARALLEL
-    CXXFLAGS += -DPARALLEL
+    CFLAGS += -DPARALLEL -DTBB_FUNCOBJ -DTBB
+    CXXFLAGS += -DPARALLEL -DTBB_FUNCOBJ -DTBB
     COMPILER=$(CXX)
     COMPILER_FLAGS=$(CXXFLAGS)
     DEDUP_OBJ += encoder-funcobj.o
   endif
   ifeq "$(version)" "tbb_lambda"
-    CFLAGS += -DPARALLEL
-    CXXFLAGS += -DPARALLEL
+    CFLAGS += -DPARALLEL -DTBB_LAMBDA -DTBB
+    CXXFLAGS += -DPARALLEL -DTBB_LAMBDA -DTBB
     COMPILER=$(CXX)
     COMPILER_FLAGS=$(CXXFLAGS)
     DEDUP_OBJ += encoder-lambda.o
