@@ -74,6 +74,14 @@ ifdef version
     benchmark_base := ferret-parallel
     LDLIBS += -lpthread
   endif
+  ifeq "$(version)" "tbb_funcobj"
+    benchmark_base := ferret-parallel-tbb-funcobj
+    LDLIBS += -lpthread -ltbb
+  endif
+  ifeq "$(version)" "tbb_lambda"
+    benchmark_base := ferret-parallel-tbb-lambda
+    LDLIBS += -lpthread -ltbb
+  endif
 endif
 
 benchmark_src := $(benchmark_base).c
