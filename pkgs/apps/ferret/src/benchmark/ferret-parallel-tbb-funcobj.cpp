@@ -370,6 +370,8 @@ public:
 
 int main( int argc, char *argv[] ) {
 // Setup 
+	tbb::task_scheduler_init init( tbb::task_scheduler_init::deferred );
+
 	stimer_t tmr;
 
 	int ret, i;
@@ -409,6 +411,8 @@ int main( int argc, char *argv[] ) {
 	int top_K 	= atoi( argv[4] );
 	int num_tokens 	= atoi( argv[5] );
 	int nthreads 	= atoi( argv[6] );
+
+	init.initialize( nthreads );
 
 	const char *output_path = argv[7];
 
