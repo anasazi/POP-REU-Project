@@ -1,3 +1,16 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <string.h>
+#include <math.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <unistd.h>
+#include <cass.h>
+#include <cass_timer.h>
+#include <../image/image.h>
+
 #include "tbb/task_scheduler_init.h"
 #include "tbb/pipeline.h"
 
