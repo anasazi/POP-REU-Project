@@ -7,33 +7,67 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <cass.h>
+extern "C" {
 #include <cass_timer.h>
+}
+extern "C" {
 #include <../image/image.h>
+}
+#include "tpool.h"
+#include "queue.h"
 
 #include "tbb/task_scheduler_init.h"
 #include "tbb/pipeline.h"
 
 #include <stack>
 
-// #define PIPELINE_WIDTH 64
+struct load_data {
+	int width, height;
+	char *name;
+	unsigned char *HSV, *RGB;
+};
 
-class Read : tbb::filter {
+struct seg_data {
+	int width, height, nrgn;
+	char *name;
+	unsigned char *mask;
+	unsigned char *HSV;
+};
+
+struct extract_data {
+	cass_dataset_t ds;
+	char *name;
+};
+
+struct vec_query_data {
+	char *name;
+	cass_dataset_t *ds;
+	cass_result_t result;
+};
+
+struct rank_data {
+	char *name;
+	cass_dataset_t *ds;
+	cass_result_t result;
+};
+
+class Read : public tbb::filter {
 private:
-	//std::stack<DIR> dir_stack;
+	struct stack_data {
+		DIR *dir;
+		char* head;
+	};
+	
 	std::stack<stack_data*> stack;
 	const char *starting_dir;
 	char path[ BUFSIZ ];
 	int first_call;
 	int *cnt_enqueue;
-
-	struct stack_data {
-		DIR *dir;
-		char* head;
-	};
 public:
 	Read( const char* starting_dir_, int *cnt_enqueue_ ) :
-		filter( tbb::filter::mode::serial ),
+		filter( tbb::filter::serial ),
 		starting_dir( starting_dir_ ),
 		first_call(1),
 		cnt_enqueue( cnt_enqueue_ )
@@ -53,7 +87,7 @@ public:
 			// special handling at the start
 			first_call = 0;
 			path[0] = 0; // empty the path buffer
-			if( ! strcmp( dir, "." ) ) {
+			if( ! strcmp( starting_dir, "." ) ) {
 				// if they used the special directory notation,
 				// make sure to enter the current directory before getting an item
 				enter_directory( ".", path );
@@ -116,7 +150,7 @@ private:
 	void enter_directory( const char *dir, char *head ) {
 		// open the directory
 		DIR *pd = NULL;
-		assert( pd = opendir( dir ) != NULL );
+		assert( ( pd = opendir( dir ) ) != NULL );
 		// store the data
 		struct stack_data *data = new stack_data;
 		data->dir = pd;
@@ -162,15 +196,10 @@ private:
 	};
 };
 
-struct load_data {
-	int width, height;
-	char *name;
-	unsigned char *HSV, *RGB;
-};
-
-class SegmentImage : tbb::filter {
+class SegmentImage : public tbb::filter {
+public:
 	SegmentImage() :
-		filter( tbb::filter::mode::parallel )
+		filter( tbb::filter::parallel )
 	{};
 
 	void* operator()( void* vitem ) {
@@ -196,16 +225,10 @@ class SegmentImage : tbb::filter {
 	};
 };
 
-struct seg_data {
-	int width, height, nrgn;
-	char *name;
-	unsigned char *mask;
-	unsigned char *HSV;
-};
-
-class ExtractFeatures : tbb::filter {
+class ExtractFeatures : public tbb::filter {
+public:
 	ExtractFeatures() :
-		filter( tbb::filter::mode::parallel )
+		filter( tbb::filter::parallel )
 	{};
 
 	void* operator()( void* vitem ) {
@@ -228,22 +251,19 @@ class ExtractFeatures : tbb::filter {
 	};
 };
 
-struct extract data {
-	cass_dataset_t ds;
-	char *name;
-};
-
-class QueryIndex : tbb::filter {
+class QueryIndex : public tbb::filter {
 private:
 	int *vec_dist_id, *vecset_dist_id, *top_K;
 	cass_table_t *table;
+	char *extra_params;
 public:
-	QueryIndex( int *vec_dist_id_, int *vecset_dist_id_, int *top_K_, cass_table_t *table_ ) :
-		filter( tbb::filter::mode::parallel ),
+	QueryIndex( int *vec_dist_id_, int *vecset_dist_id_, int *top_K_, cass_table_t *table_, char *extra_params_ ) :
+		filter( tbb::filter::parallel ),
 		vec_dist_id( vec_dist_id_ ),
 		vecset_dist_id( vecset_dist_id_ ),
 		top_K( top_K_ ),
-		table( table_ )
+		table( table_ ),
+		extra_params( extra_params_ )
 	{};
 
 	void* operator()( void* vitem ) {
@@ -267,7 +287,7 @@ public:
 
 		cass_result_alloc_list( &vec->result, vec->ds->vecset[0].num_regions, query.topk );
 
-		cass_table_query( *table, &query, &vec->result ); // pass in
+		cass_table_query( table, &query, &vec->result ); // pass in
 
 		delete extract; 
 
@@ -275,19 +295,13 @@ public:
 	};
 };
 
-struct vec_query_data {
-	char *name;
-	cass_dataset_t *ds;
-	cass_result_t result;
-};
-
-class RankCandidates : tbb::filter {
+class RankCandidates : public tbb::filter {
 private:
 	int *vec_dist_id, *vecset_dist_id, *top_K;
-	cass_dataset_t* query_table;
+	cass_table_t* query_table;
 public:
-	RankCandidates( int *vec_dist_id_, int *vecset_dist_id_, int *top_K_, cass_dataset_t *query_table_ ) :
-		filter( tbb::filter::mode::parallel ),
+	RankCandidates( int *vec_dist_id_, int *vecset_dist_id_, int *top_K_, cass_table_t *query_table_ ) :
+		filter( tbb::filter::parallel ),
 		vec_dist_id( vec_dist_id_ ),
 		vecset_dist_id( vecset_dist_id_),
 		top_K( top_K_ ),
@@ -330,20 +344,14 @@ public:
 	};
 };
 
-struct rank_data {
-	char *name;
-	cass_dataset_t *ds;
-	cass_result_t result;
-};
-
-class Write : tbb::filter {
+class Write : public tbb::filter {
 private:
 	FILE *fout;
 	cass_table_t *query_table;
 	int *cnt_enqueue, *cnt_dequeue;
 public:
 	Write( FILE *fout_, cass_table_t *query_table_, int *cnt_enqueue_, int *cnt_dequeue_ ) :
-		filter( tbb::filter::mode::serial ),
+		filter( tbb::filter::serial ),
 		fout( fout_ ),
 		query_table( query_table_ ),
 		cnt_enqueue( cnt_enqueue_ ),
@@ -461,9 +469,9 @@ int main( int argc, char *argv[] ) {
 
 // Create pipeline stages
 	Read 		reader( query_dir, &cnt_enqueue );
-	SegmentImage 	seg();
-	ExtractFeatures	ext();
-	QueryIndex	query( &vec_dist_id, &vecset_dist_id, &top_K, table );
+	SegmentImage 	seg;
+	ExtractFeatures	ext;
+	QueryIndex	query( &vec_dist_id, &vecset_dist_id, &top_K, table, extra_params );
 	RankCandidates	rank( &vec_dist_id, &vecset_dist_id, &top_K, query_table );
 	Write		write( fout, query_table, &cnt_enqueue, &cnt_dequeue );
 	tbb::pipeline 	pipe;
