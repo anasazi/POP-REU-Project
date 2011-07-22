@@ -94,8 +94,16 @@ ifdef version
   endif
 endif
 
-benchmark_tgt := $(notdir $(benchmark_src))
-benchmark_tgt := $(addprefix $(BINDIR)/, $(benchmark_tgt:.c=))
+benchmark_tgt_ := $(notdir $(benchmark_src))
+benchmark_tgt := $(addprefix $(BINDIR)/, $(benchmark_tgt_:.c=))
+ifdef version
+  ifeq "$(version)" "tbb_funcobj"
+    benchmark_tgt := $(addprefix $(BINDIR)/, $(benchmark_tgt_:.cpp=))
+  endif
+  ifeq "$(version)" "tbb_lambda"
+    benchmark_tgt := $(addprefix $(BINDIR)/, $(benchmark_tgt_:.cpp=))
+  endif
+endif
 
 benchmark : $(benchmark_tgt)
 
