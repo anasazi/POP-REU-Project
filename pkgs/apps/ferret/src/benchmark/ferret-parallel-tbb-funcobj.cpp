@@ -132,7 +132,7 @@ private:
 		struct stat st;
 		// append the file name to the path
 		strcat( head, dir );
-		assert( stat( path, &st ) != 0 );
+		assert( stat( path, &st ) == 0 );
 		if( S_ISREG( st.st_mode ) )
 			// just return the loaded file
 			return load_file( path, head );
@@ -238,6 +238,7 @@ public:
 		seg = (seg_data*) vitem;
 		assert( seg != NULL );
 		extract	= new extract_data;
+		extract->name = seg->name;
 
 		image_extract_helper( seg->HSV, seg->mask, seg->width, seg->height, seg->nrgn, &extract->ds );
 
@@ -289,7 +290,7 @@ public:
 
 		cass_table_query( table, &query, &vec->result ); // pass in
 
-		delete extract; 
+	//	delete extract; 
 
 		return (void*) vec;
 	};
@@ -319,7 +320,7 @@ public:
 		rank 		= new rank_data;
 		rank->name 	= vec->name;
 
-		query.flags 		= CASS_RESULT_LISTS | CASS_RESULT_USERMEM | CASS_RESULT_SORT;
+		query.flags 		= CASS_RESULT_LIST | CASS_RESULT_USERMEM | CASS_RESULT_SORT;
 		query.dataset 		= vec->ds;
 		query.vecset_id 	= 0;
 		query.vec_dist_id 	= *vec_dist_id; // pass in
@@ -447,9 +448,9 @@ int main( int argc, char *argv[] ) {
 		return 0;
 	}
 
-	assert( vec_dist_id = cass_reg_lookup( &env->vec_dist, "L2_float" ) >= 0 );
+	assert( ( vec_dist_id = cass_reg_lookup( &env->vec_dist, "L2_float" ) ) >= 0 );
 
-	assert( vecset_dist_id = cass_reg_lookup( &env->vecset_dist, "emd" ) >= 0 );
+	assert( ( vecset_dist_id = cass_reg_lookup( &env->vecset_dist, "emd" ) ) >= 0 );
 
 	i = cass_reg_lookup( &env->table, table_name );
 	table = query_table = cass_reg_get( &env->table, i );
