@@ -3,3 +3,5 @@
 # gcc-tbb-funcobj.bldconf - configuration file for PARSEC
 
 source ${PARSECDIR}/pkgs/apps/ferret/parsec/gcc.bldconf
+
+build_env="version=\"tbb_funcobj\" ${ferret_flags}"
