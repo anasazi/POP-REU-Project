@@ -23,6 +23,8 @@ extern "C" {
 
 #include <stack>
 
+#define PIPELINE_WIDTH 64
+
 struct load_data {
 	int width, height;
 	char *name;
@@ -485,8 +487,8 @@ int main( int argc, char *argv[] ) {
 	pipe.add_filter( write );
 
 // Run pipeline
-	//pipe.run( PIPELINE_WIDTH );
-	pipe.run( num_tokens );
+	pipe.run( PIPELINE_WIDTH );
+//	pipe.run( num_tokens );
 
 // Clean up 
 	assert( cnt_enqueue == cnt_dequeue );
