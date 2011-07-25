@@ -23,7 +23,7 @@ extern "C" {
 
 #include <stack>
 
-#define PIPELINE_WIDTH 64
+#define PIPELINE_WIDTH 1024
 
 struct load_data {
 	int width, height;

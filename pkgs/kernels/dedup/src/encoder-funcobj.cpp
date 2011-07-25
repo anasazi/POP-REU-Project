@@ -21,8 +21,8 @@
 
 #define INITIAL_SIZE 4096
 
-#define OUTER_PIPELINE_NUM_TOKENS 32 // TODO find better value
-#define INNER_PIPELINE_NUM_TOKENS 32 // TODO find better value
+#define OUTER_PIPELINE_NUM_TOKENS 1024 // TODO find better value
+#define INNER_PIPELINE_NUM_TOKENS 1024 // TODO find better value
 
 // TODO do we need this?
 extern config * conf;
