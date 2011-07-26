@@ -67,10 +67,19 @@ static int write_file( int fd, u_char type, int seq_count, u_long len, u_char *c
 	return 0;
 }
 
-/* THE OUTER PIPELINE CLASSES */
-class ReadBlocksFromInput : public tbb::filter {
-private:
-	int fd; // file descriptor of input file
+// compress an input stream
+void Encode( config *conf ) {
+	// create the header for the outfile
+	send_head *head = new send_head;
+	strcpy( head->filename, conf->infile );
+	filecount++;
+	head->fid = filecount;
+	// open in and out file (they will be closed when the pipeline is destroyed
+	int infd = open( conf->infile, O_RDONLY | O_LARGEFILE );
+	int outfd = open( conf->outfile, O_CREAT | O_TRUNC | O_WRONLY | O_TRUNC, S_IRGRP | S_IWUSR | S_IRUSR | S_IROTH );
+	// set up the pipeline
+
+	// state for the read stage
 	u_char src_chunk[ MAXBUF * 2 ], left_overs[ MAXBUF ], new_chunk[ MAXBUF ];
 	int src_bytes, left_bytes, src_loc;
 	u_char *anchor_start, *anchor_end;
@@ -78,8 +87,13 @@ private:
 	u32int rabintab[256], rabinwintab[256];
 	int rf_win_dataprocess, n;
 
-	// returns NULL if no new blocks
-	block_of_fingerprints* getNextBlock() {
+	src_bytes = left_bytes = src_loc = more = rf_win_dataprocess = 0;
+	anchor_start = anchor_end = NULL;
+	n = MAX_RABIN_CHUNK_SIZE;
+
+	rabininit( rf_win_dataprocess, rabintab, rabinwintab );
+
+	auto getNextBlock = [&]() -> block_of_fingerprints* {
 		if ( src_loc < src_bytes ) {
 			anchor_start = src_chunk + src_loc;
 			anchor_end = anchor_start + ANCHOR_JUMP;
@@ -113,40 +127,20 @@ private:
 		}
 	};
 
-public:
-	ReadBlocksFromInput( int _fd ) :
-	//	tbb::filter( tbb::filter::serial_in_order ),
-		tbb::filter( true ),
-		fd(_fd),
-		src_bytes(0),
-		left_bytes(0),
-		src_loc(0),
-		anchor_start(NULL),
-		anchor_end(NULL),
-		more(0),
-		rf_win_dataprocess(0),
-		n(MAX_RABIN_CHUNK_SIZE)
-	{
-		rabininit( rf_win_dataprocess, rabintab, rabinwintab );
-	};
-
-	~ReadBlocksFromInput() {
-		close( fd );
-	};
-
-	// argument is ignored
-	void* operator()( void* ) {
+	auto read_f = [&]( tbb::flow_control& fc ) -> block_of_fingerprints* {
 		block_of_fingerprints* item;
 		if ( (item = getNextBlock()) != NULL ) {
 			return item;
 		} else {
 			// we need to read more in first
-			src_bytes = read( fd, new_chunk, MAXBUF );
+			src_bytes = read( infd, new_chunk, MAXBUF );
 			if ( src_bytes )
 				more = 1;
 			else {
-				if ( !more )
+				if ( !more ) {
+					fc.stop();
 					return NULL;
+				}
 				more = 0;
 			}
 
@@ -166,66 +160,26 @@ public:
 			if ( (item = getNextBlock()) != NULL ) {
 				return item;
 			} else {
+				fc.stop();
 				return NULL;
 			}
 		}
 	};
-};
 
-class ProcessBlocks : public tbb::filter {
-public:
-	ProcessBlocks() :
-		//tbb::filter( tbb::parallel )
-		tbb::filter( false )
-	{};
-	void* operator()( void* vitem ) {
-		block_of_fingerprints* item = (block_of_fingerprints*) vitem;
+	auto process_f = [&]( block_of_fingerprints *input ) -> std::vector< one_processed_fingerprint* >* {
 		std::vector<one_processed_fingerprint*> *out_item = new std::vector<one_processed_fingerprint*>();
 
-		tbb::pipeline 		pipeline;
+		// state for the break up stage
+		u_char 	*anchor_start 	= input->start;
+		u_char 	*anchor_end	= input->start;
+		int 	n		= MAX_RABIN_CHUNK_SIZE;
+		int 	rf_win		= 0;
+		u32int	rabintab[256];
+		u32int 	rabinwintab[256];
 
-		BreakUpBlocks 		filter1( item );
-		CheckHash 		filter2;
-		Compress 		filter3;
-		ReassembleBlocks	filter4( out_item );
+		rabininit( rf_win, rabintab, rabinwintab );
 
-		pipeline.add_filter( filter1 );
-		pipeline.add_filter( filter2 );
-		pipeline.add_filter( filter3 );
-		pipeline.add_filter( filter4 );
-
-		pipeline.run( INNER_PIPELINE_NUM_TOKENS );
-		pipeline.clear();
-
-		return (void*) out_item;
-	};
-protected:
-	/* THE INNER PIPELINE CLASSES */
-	class BreakUpBlocks : public tbb::filter {
-	private:
-		block_of_fingerprints *input;
-		u_char *anchor_start, *anchor_end;
-		int n, rf_win;
-		u32int rabintab[256], rabinwintab[256];
-	public:
-		BreakUpBlocks( block_of_fingerprints *_input ) :
-			//filter( serial_in_order ),
-			filter( true ),
-			input(_input),
-			n(MAX_RABIN_CHUNK_SIZE),
-			rf_win(0)
-		{
-			rabininit( rf_win, rabintab, rabinwintab );
-			anchor_start = input->start;
-			anchor_end = input->start;
-		};
-
-		virtual ~BreakUpBlocks() {
-			delete[] input->start;
-			delete input;
-		};
-		// argument is ignored
-		void* operator()( void* ) {
+		auto break_up_f = [&]( tbb::flow_control& fc ) -> one_fingerprint* {
 			one_fingerprint *item;
 			if ( anchor_end < input->start + input->len ) {
 				if ( input->len + input->start - anchor_end < n ) {
@@ -249,18 +203,11 @@ protected:
 				item->start[ anchor_len ] = 0;
 				return item;
 			} */
+			fc.stop();
 			return NULL;
 		};
-	};
 
-	class CheckHash : public tbb::filter {
-	public:
-		CheckHash() :
-			//tbb::filter( tbb::parallel )
-			tbb::filter( false )
-		{};
-		void* operator()( void* vitem ) {
-			one_fingerprint *item = (one_fingerprint*) vitem;
+		auto check_hash_f = [&]( one_fingerprint *item ) -> one_processed_fingerprint* {
 			one_processed_fingerprint *out_item;
 			one_processed_fingerprint_body *out_body;
 
@@ -317,16 +264,8 @@ protected:
 
 			return out_item;
 		};
-	};
 
-	class Compress : public tbb::filter {
-	public:
-		Compress() :
-			//tbb::filter( tbb::parallel )
-			tbb::filter( false )
-		{};
-		void* operator()( void* vitem ) {
-			one_processed_fingerprint *item = (one_processed_fingerprint*) vitem;
+		auto compress_f = [&]( one_processed_fingerprint *item ) -> one_processed_fingerprint* {
 			if ( item->type != TYPE_COMPRESS )
 				return item; // skip the compression stage
 
@@ -380,55 +319,29 @@ protected:
 
 			return item;
 		};
-	};
 
-	class ReassembleBlocks : public tbb::filter {
-	private:
-		std::vector<one_processed_fingerprint*> *buf;
-	public:
-		ReassembleBlocks( std::vector<one_processed_fingerprint*> *_buf ) :
-			//tbb::filter( tbb::serial_in_order ),
-			tbb::filter( true ),
-			buf(_buf)
-		{};
-		// return value is ignored
-		void* operator()( void* vitem ) {
-			one_processed_fingerprint *item = (one_processed_fingerprint*) vitem;
-			buf->push_back( item );
-			return NULL;
+		auto reassemble_f = [&]( one_processed_fingerprint *item ) -> void {
+			out_item->push_back( item );
+			return;
 		};
-	};
-};
 
-class WriteBlocksToOutput : public tbb::filter {
-private:
-	int fd; // the output file descriptor
-	int seq_count;
-public:
-	WriteBlocksToOutput( int fd_, send_head *head_ ) :
-		//tbb::filter( tbb::serial_in_order ),
-		tbb::filter( true ),
-		fd(fd_),
-		seq_count(0)
-	{
-		u_char x = TYPE_HEAD;
-		//xwrite( fd, &head_->type, sizeof( head_->type ) );
-		xwrite( fd, &x, sizeof( x ) );
-		int checkbit = CHECKBIT;
-		xwrite( fd, &checkbit, sizeof( int ) );
-		xwrite( fd, head_, sizeof( send_head ) );
+		tbb::parallel_pipeline( INNER_PIPELINE_NUM_TOKENS,
+					tbb::make_filter< void, one_fingerprint* >( tbb::filter::serial_in_order, break_up_f ) &
+					tbb::make_filter< one_fingerprint*, one_processed_fingerprint* >( tbb::filter::parallel, check_hash_f ) &
+					tbb::make_filter< one_processed_fingerprint*, one_processed_fingerprint* >( tbb::filter::parallel, compress_f ) &
+					tbb::make_filter< one_processed_fingerprint*, void >( tbb::filter::serial_in_order, reassemble_f ) );
+
+		// cleanup for the break up stage
+		delete[] input->start;
+		delete input;
+
+		return out_item;
 	};
 
-	~WriteBlocksToOutput() {
-		u_char type = TYPE_FINISH;
-		xwrite( fd, &type, sizeof(type) );
-		close( fd );
-	};
+	// state for write stage
+	int seq_count = 0;
 
-	// return value is ignored
-	void* operator()( void* vitem ) {
-		std::vector<one_processed_fingerprint*> *item_vec = (std::vector<one_processed_fingerprint*>*) vitem;
-
+	auto write_f = [&]( std::vector< one_processed_fingerprint* > *item_vec ) -> void {
 		for( int i = 0; i < item_vec->size(); i++ ) {
 			one_processed_fingerprint* item = (*item_vec)[i];
 			switch ( item->type ) {
@@ -442,13 +355,13 @@ public:
 							struct pContent *value = ( (struct pContent*) entry->v );
 							if ( value->tag == TAG_WRITTEN ) {
 								pthread_mutex_unlock( ht_lock );
-								write_file( fd, TYPE_FINGERPRINT, seq_count, body->len, item->content );
+								write_file( outfd, TYPE_FINGERPRINT, seq_count, body->len, item->content );
 							} else {
 								while ( value->tag == TAG_OCCUPY ) {
 									pthread_cond_wait( &value->empty, ht_lock );
 								}
 								if ( value->tag == TAG_DATAREADY ) {
-									write_file( fd, TYPE_COMPRESS, seq_count, value->len, value->content );
+									write_file( outfd, TYPE_COMPRESS, seq_count, value->len, value->content );
 									value->len = seq_count;
 									value->tag = TAG_WRITTEN;
 									hashtable_change( entry, (void*) value );
@@ -475,40 +388,20 @@ public:
 
 		delete item_vec;
 
-		return NULL;
+		return;
 	};
-};
 
-// compress an input stream
-void Encode( config *conf ) {
-	//tbb::task_scheduler_init( conf->nthreads );
-	// create the header for the outfile
-	send_head *head = new send_head;
-	strcpy( head->filename, conf->infile );
-	filecount++;
-	head->fid = filecount;
-	// open in and out file (they will be closed when the pipeline is destroyed
-	int infd = open( conf->infile, O_RDONLY | O_LARGEFILE );
-	int outfd = open( conf->outfile, O_CREAT | O_TRUNC | O_WRONLY | O_TRUNC, S_IRGRP | S_IWUSR | S_IRUSR | S_IROTH );
-	// set up the pipeline
-	tbb::pipeline pipeline;
+	tbb::parallel_pipeline( OUTER_PIPELINE_NUM_TOKENS,
+				tbb::make_filter< void, block_of_fingerprints* >( tbb::filter::serial_in_order, read_f ) &
+				tbb::make_filter< block_of_fingerprints*, std::vector< one_processed_fingerprint* >* >( tbb::filter::parallel, process_f ) &
+				tbb::make_filter< std::vector< one_processed_fingerprint* >*, void >( tbb::filter::serial_in_order, write_f ) );
 
-	ReadBlocksFromInput *infilter = new ReadBlocksFromInput( infd );
-	ProcessBlocks *midfilter = new ProcessBlocks();
-	WriteBlocksToOutput *outfilter = new WriteBlocksToOutput( outfd, head );
+	// cleanup of write stage
+	u_char type = TYPE_FINISH;
+	xwrite( outfd, &type, sizeof( type ) );
 
-	pipeline.add_filter( *infilter );
-	pipeline.add_filter( *midfilter );
-	pipeline.add_filter( *outfilter );
-
-	// run the pipeline
-	pipeline.run( OUTER_PIPELINE_NUM_TOKENS );
-	// destroy the pipeline
-	pipeline.clear();
-
-	delete infilter;
-	delete midfilter;
-	delete outfilter;
+	close( infd );
+	close( outfd );
 
 	return;
 };
